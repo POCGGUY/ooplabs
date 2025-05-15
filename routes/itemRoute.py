@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.database import SessionLocal
-from schemas.itemRoute import *
+from schemas.itemRoute import ItemCreate, ItemRead, ItemUpdate
 from service import itemService as service
 
 router = APIRouter(prefix="/items", tags=["Items"])

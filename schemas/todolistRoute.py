@@ -15,6 +15,7 @@ class TodoListUpdate(BaseModel):
 
 class TodoListRead(TodoListBase):
     id: int
+    progress: float
 
     class Config:
         orm_mode = True

@@ -1,23 +1,29 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+import datetime
 from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from model.todolistModel import TodoList
-from schemas.todolistRoute import TodoListCreate, TodoListUpdate
 
 async def get_all(session: AsyncSession):
-    result = await session.execute(select(TodoList))
+    result = await session.execute(
+        select(TodoList).where(TodoList.deleted_at.is_(None))
+    )
     return result.scalars().all()
 
 async def get(session: AsyncSession, todolist_id: int):
-    return await session.get(TodoList, todolist_id)
+    result = await session.execute(
+        select(TodoList)
+        .where(TodoList.id == todolist_id, TodoList.deleted_at.is_(None))
+    )
+    return result.scalar_one_or_none()
 
-async def create(session: AsyncSession, data: TodoListCreate):
+async def create(session: AsyncSession, data):
     todo = TodoList(**data.dict())
     session.add(todo)
     await session.commit()
     await session.refresh(todo)
     return todo
 
-async def update(session: AsyncSession, todolist_id: int, data: TodoListUpdate):
+async def update(session: AsyncSession, todolist_id: int, data):
     todo = await get(session, todolist_id)
     if not todo:
         return None
@@ -31,6 +37,11 @@ async def delete(session: AsyncSession, todolist_id: int):
     todo = await get(session, todolist_id)
     if not todo:
         return None
-    await session.delete(todo)
+    todo.deleted_at = datetime.datetime.utcnow()
     await session.commit()
     return todo
+
+def calculate_progress(todolist: TodoList) -> float:
+    if todolist.total_count == 0:
+        return 0.0
+    return (todolist.completed_count / todolist.total_count) * 100
