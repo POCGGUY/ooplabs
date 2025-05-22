@@ -6,24 +6,12 @@ from service import todolistService as service
 
 router = APIRouter(prefix="/todolists", tags=["TodoLists"])
 
-todolist_not_found_msg = "TodoList не найден"
-todolist_is_deleted_msg = "TodoList удалён"
+not_found_msg = "TodoList не найден"
+deleted_msg = "TodoList удалён"
 
 async def get_db():
     async with SessionLocal() as session:
         yield session
-
-@router.get("/", response_model=list[TodoListRead])
-async def list_todolists(db: AsyncSession = Depends(get_db)):
-    todos = await service.get_all(db)
-    return [
-        TodoListRead(
-            id=todo.id,
-            name=todo.name,
-            progress=service.calculate_progress(todo)
-        )
-        for todo in todos
-    ]
 
 @router.post("/", response_model=TodoListRead)
 async def create_todolist(data: TodoListCreate, db: AsyncSession = Depends(get_db)):
@@ -31,34 +19,20 @@ async def create_todolist(data: TodoListCreate, db: AsyncSession = Depends(get_d
     return TodoListRead(
         id=todo.id,
         name=todo.name,
-        progress=service.calculate_progress(todo)
-    )
-
-@router.get("/{todolist_id}", response_model=TodoListRead)
-async def get_todolist(todolist_id: int, db: AsyncSession = Depends(get_db)):
-    todo = await service.get(db, todolist_id)
-    if not todo:
-        raise HTTPException(status_code=404, detail=todolist_not_found_msg)
-    return TodoListRead(
-        id=todo.id,
-        name=todo.name,
-        progress=service.calculate_progress(todo)
+        progress=0.0
     )
 
 @router.patch("/{todolist_id}", response_model=TodoListRead)
 async def update_todolist(todolist_id: int, data: TodoListUpdate, db: AsyncSession = Depends(get_db)):
     todo = await service.update(db, todolist_id, data)
     if not todo:
-        raise HTTPException(status_code=404, detail=todolist_not_found_msg)
-    return TodoListRead(
-        id=todo.id,
-        name=todo.name,
-        progress=service.calculate_progress(todo)
-    )
+        raise HTTPException(404, not_found_msg)
+    progress = (todo.completed_count / todo.total_count * 100) if todo.total_count else 0.0
+    return TodoListRead(id=todo.id, name=todo.name, progress=progress)
 
 @router.delete("/{todolist_id}")
 async def delete_todolist(todolist_id: int, db: AsyncSession = Depends(get_db)):
     deleted = await service.delete(db, todolist_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail=todolist_not_found_msg)
-    return {"detail": todolist_is_deleted_msg}
+        raise HTTPException(404, not_found_msg)
+    return {"detail": deleted_msg}
